@@ -27,8 +27,8 @@ def init():
     discord_client.run(token)
 
 async def retrieve():
-    while True:
-        print('Fetching for all users at date', date.today().strftime('%d/%m - %H:%M:%S'))
+        i = 0
+        print('Fetching for all users at date', date.today().strftime('%d/%m %H:%M:%S'))
         for uindex, user in enumerate(users):
             client = TgtgClient(access_token=user['access_token'], refresh_token=user['refresh_token'], user_id=user['user_id'])
             items = client.get_items(with_stock_only=True)
@@ -47,19 +47,29 @@ async def retrieve():
                 name = i['name']
                 id = i['item_id']
                 store = item['store']['store_name']
-                print(name, desc, price, id, store, available, end)
-                ndata.append({'name':name, 'desc':desc, 'price':price, 'id':id, 'store':store,'available':available, 'end': end})
-                if len(list(filter(lambda a : a['id']==ndata['id'], data))) == 0:
-                    print("I am sending a msg...")
+                picture = item['store']['logo_picture']['current_url']
+                ndata.append(id)
+                if not id in data:
+                    i += 1
+                    print("Sending a message to user n°" + str(uindex), ", offer found :", name)
                     discord_id = user['discord_id']
-                    embed = discord.Embed(title="Un nouvel item est apparu !", description=f"{name}\n{desc}", color=discord.Color.blue())
+                    embed = discord.Embed(title="Un nouvel item est apparu (" + store + ")", description=name, color=discord.Color.blue())
+                    embed.set_thumbnail(url=picture)
+                    embed.add_field(name="Description",value=desc, inline=False)
+                    embed.add_field(name="Quantité", value=available, inline=True)
+                    embed.add_field(name="Jusqu'à", value=end, inline=True)
+                    embed.add_field(name="Prix", value=str(price) + "€", inline=True)
                     discord_user = await discord_client.fetch_user(discord_id)
                     await discord_user.send(embed=embed)
+                    i -= 1
+                    print("Message sent")
 
             f = open(fileName, 'w')
             json.dump({"orders": ndata}, f)
+        while i > 0:
+            time.sleep(1)
         print("End of fetching, everything's okay")
-        time.sleep(60 * 15)
+        discord_client.close()
                 
 
 if __name__=="__main__":
